@@ -109,7 +109,7 @@ export default function DownloadButton({
 
       {webviewHint && (
         <p className="mt-2 text-center text-xs text-amber-300 font-medium" role="status">
-          Zalo có thể chặn tải tự động. Nếu chưa thấy ảnh được lưu, hãy chạm giữ ảnh hoặc mở menu ⋮ rồi chọn Lưu ảnh.
+          Zalo có thể chặn tải tự động. Nếu chưa thấy ảnh được lưu, hãy mở menu ⋮ rồi chọn Mở bằng trình duyệt và thực hiện thao tác tạo ảnh lại.
         </p>
       )}
 
