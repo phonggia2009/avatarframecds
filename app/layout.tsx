@@ -14,6 +14,10 @@ export const metadata: Metadata = {
     'Tạo ảnh đại diện với khung chuyển đổi số Xã Sơn Đồng. Tải ảnh, căn chỉnh và tải avatar hoàn chỉnh miễn phí.',
   keywords: ['avatar', 'chuyển đổi số', 'Sơn Đồng', 'tạo avatar', 'khung ảnh'],
   authors: [{ name: 'UBND xã Sơn Đồng' }],
+  icons: {
+    icon: '/favicon.png',
+    apple: '/favicon.png',
+  },
   openGraph: {
     title: 'Tạo Avatar Chuyển Đổi Số – Xã Sơn Đồng',
     description:
@@ -33,6 +37,8 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
       <body className={inter.className}>{children}</body>
     </html>
