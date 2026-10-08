@@ -169,6 +169,26 @@ export async function downloadCanvas(
         canvas.toBlob(
           (blob) => {
             if (blob) {
+              // Some embedded browsers (including Zalo WebView) ignore the
+              // download attribute on blob URLs. Use the native share sheet
+              // for the image when it supports file sharing.
+              const shareFile = new File([blob], cleanFileName, { type: mimeType });
+              if (
+                typeof navigator !== 'undefined' &&
+                typeof navigator.share === 'function' &&
+                typeof navigator.canShare === 'function' &&
+                navigator.canShare({ files: [shareFile] })
+              ) {
+                navigator.share({ files: [shareFile], title: cleanFileName })
+                  .then(() => resolve())
+                  .catch((err: unknown) => {
+                    // User dismissal should not fall through to a second UI.
+                    if (err instanceof Error && err.name === 'AbortError') resolve();
+                    else reject(err);
+                  });
+                return;
+              }
+
               const blobUrl = URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.download = cleanFileName;
@@ -181,7 +201,7 @@ export async function downloadCanvas(
               // Dọn dẹp URL sau khi click
               setTimeout(() => {
                 URL.revokeObjectURL(blobUrl);
-              }, 1500);
+              }, 10000);
 
               resolve();
               return;
