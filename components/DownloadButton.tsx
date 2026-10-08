@@ -23,21 +23,21 @@ export default function DownloadButton({
   const [format, setFormat] = useState<'png' | 'jpg'>('png');
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [webviewHint, setWebviewHint] = useState(false);
 
   const handleDownload = async () => {
     if (!userImage || !frameImage) return;
 
     setIsGenerating(true);
     setErrorMsg(null);
+    setWebviewHint(false);
     try {
-      // Small delay to allow UI update
-      await new Promise((r) => setTimeout(r, 50));
-
       // Tạo output canvas 1536x1536
       const outputCanvas = createOutputCanvas(userImage, frameImage, transform);
 
-      // Trigger download với Promise blob
-      await downloadCanvas(outputCanvas, format, FRAME_CONFIG.outputFileName);
+      // Keep export synchronous with the user's tap for embedded webviews.
+      const isEmbeddedWebView = await downloadCanvas(outputCanvas, format, FRAME_CONFIG.outputFileName);
+      setWebviewHint(isEmbeddedWebView);
 
       onSuccess?.();
     } catch (err) {
@@ -104,6 +104,12 @@ export default function DownloadButton({
       {errorMsg && (
         <p className="mt-2 text-center text-xs text-red-400 font-medium">
           {errorMsg}
+        </p>
+      )}
+
+      {webviewHint && (
+        <p className="mt-2 text-center text-xs text-amber-300 font-medium" role="status">
+          Zalo có thể chặn tải tự động. Nếu chưa thấy ảnh được lưu, hãy chạm giữ ảnh hoặc mở menu ⋮ rồi chọn Lưu ảnh.
         </p>
       )}
 

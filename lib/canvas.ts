@@ -149,98 +149,43 @@ export function renderAvatar(options: RenderOptions): void {
  */
 /**
  * Export canvas thành file ảnh và trigger download
- * Sử dụng Blob + URL.createObjectURL để đảm bảo file tải về là file ảnh hợp lệ (.png hoặc .jpg),
- * tránh lỗi file không có đuôi hoặc data URL quá dài (>2MB) bị trình duyệt chuyển thành file lạ/corrupted.
+ * Prefer a normal anchor download. Embedded browsers such as Zalo may ignore
+ * the download attribute; in that case navigate to the image so it can be
+ * saved through the webview's image menu.
  */
 export async function downloadCanvas(
   canvas: HTMLCanvasElement,
   format: 'png' | 'jpg' = 'png',
   fileName: string = FRAME_CONFIG.outputFileName
-): Promise<void> {
+): Promise<boolean> {
   const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
   const quality = format === 'jpg' ? 0.95 : undefined;
   const ext = format === 'jpg' ? 'jpg' : 'png';
   const cleanFileName = fileName.endsWith(`.${ext}`) ? fileName : `${fileName}.${ext}`;
 
-  return new Promise<void>((resolve, reject) => {
-    try {
-      // 1. Thử dùng canvas.toBlob (chuẩn W3C tốt nhất cho download file ảnh lớn)
-      if (typeof canvas.toBlob === 'function') {
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              // Some embedded browsers (including Zalo WebView) ignore the
-              // download attribute on blob URLs. Use the native share sheet
-              // for the image when it supports file sharing.
-              const shareFile = new File([blob], cleanFileName, { type: mimeType });
-              if (
-                typeof navigator !== 'undefined' &&
-                typeof navigator.share === 'function' &&
-                typeof navigator.canShare === 'function' &&
-                navigator.canShare({ files: [shareFile] })
-              ) {
-                navigator.share({ files: [shareFile], title: cleanFileName })
-                  .then(() => resolve())
-                  .catch((err: unknown) => {
-                    // User dismissal should not fall through to a second UI.
-                    if (err instanceof Error && err.name === 'AbortError') resolve();
-                    else reject(err);
-                  });
-                return;
-              }
+  const dataUrl = canvas.toDataURL(mimeType, quality);
+  const ua = navigator.userAgent.toLowerCase();
+  const isEmbeddedWebView = /zalo|; wv\)|\bwv\b/.test(ua);
 
-              const blobUrl = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.download = cleanFileName;
-              link.href = blobUrl;
-              link.style.display = 'none';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+  if (isEmbeddedWebView) {
+    // A same-tab image navigation is allowed by most embedded browsers and
+    // exposes their native long-press / save-image action.
+    window.location.assign(dataUrl);
+    return true;
+  }
 
-              // Dọn dẹp URL sau khi click
-              setTimeout(() => {
-                URL.revokeObjectURL(blobUrl);
-              }, 10000);
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = cleanFileName;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 
-              resolve();
-              return;
-            }
-
-            // Fallback sang toDataURL nếu blob null
-            fallbackDataUrl();
-          },
-          mimeType,
-          quality
-        );
-      } else {
-        fallbackDataUrl();
-      }
-    } catch (err) {
-      // Nếu có lỗi (ví dụ SecurityError hoặc toBlob lỗi), thử fallback
-      try {
-        fallbackDataUrl();
-      } catch (fallbackErr) {
-        reject(fallbackErr);
-      }
-    }
-
-    function fallbackDataUrl() {
-      try {
-        const dataUrl = canvas.toDataURL(mimeType, quality);
-        const link = document.createElement('a');
-        link.download = cleanFileName;
-        link.href = dataUrl;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    }
-  });
+  // Return whether the environment appears to be an embedded browser that
+  // commonly blocks programmatic downloads. The caller can show save guidance.
+  return false;
 }
 
 /**
